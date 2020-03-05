@@ -135,19 +135,10 @@ void ModbusMaster::send(uint8_t data)
   send(word(data));
 }
 
-
-
-
-
-
-
-
-
 uint8_t ModbusMaster::available(void)
 {
   return _u8ResponseBufferLength - _u8ResponseBufferIndex;
 }
-
 
 uint16_t ModbusMaster::receive(void)
 {
@@ -160,13 +151,6 @@ uint16_t ModbusMaster::receive(void)
     return 0xFFFF;
   }
 }
-
-
-
-
-
-
-
 
 /**
 Set idle time callback function (cooperative multitasking).
@@ -214,6 +198,19 @@ Receiver Enable pin, and disable its Driver Enable pin.
 void ModbusMaster::postTransmission(void (*postTransmission)())
 {
   _postTransmission = postTransmission;
+}
+
+/**
+Sets the slave address (post-initialization)
+
+@param uint8_t New slave address
+@return void
+*/
+void ModbusMaster::setSlaveAddress(uint8_t slaveAddress)
+{
+  _u8MBSlave = slaveAddress;
+  _u8TransmitBufferIndex = 0;
+  u16TransmitBufferLength = 0;
 }
 
 
@@ -582,6 +579,22 @@ uint8_t ModbusMaster::readWriteMultipleRegisters(uint16_t u16ReadAddress,
   return ModbusMasterTransaction(ku8MBReadWriteMultipleRegisters);
 }
 
+/**
+Arbitrary Modbus command defined by the user, wothout parameters
+
+Used by some kinds of devices for functions like reset, auto-calibration, etc.
+
+You must know what you're doing since results are unpredictable if invalid commands/parameters are sent to the slave device.
+
+@param uint8_t The command to execute
+@param uint8_t Number of bytes expected in a successful response (not counting slave address, command and CRC)
+@return 0 on success; exception number on failure
+*/
+uint8_t ModbusMaster::arbitraryCommandNoParameters(uint8_t command, uint8_t numBytesExpected)
+{
+	return ModbusMasterTransaction(command, numBytesExpected);
+}
+
 
 /* _____PRIVATE FUNCTIONS____________________________________________________ */
 /**
@@ -595,9 +608,10 @@ Sequence:
   - return status (success/exception)
 
 @param u8MBFunction Modbus function (0x01..0xFF)
+@param numBytesExpected Overrides number of bytes expected in a successful response, used for custom ModBus commands. Ignored for the standard ModBus commands.
 @return 0 on success; exception number on failure
 */
-uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction)
+uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction, uint8_t numBytesExpected)
 {
   uint8_t u8ModbusADU[256];
   uint8_t u8ModbusADUSize = 0;
@@ -795,6 +809,8 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction)
         case ku8MBMaskWriteRegister:
           u8BytesLeft = 5;
           break;
+		default:
+			u8BytesLeft = numBytesExpected;
       }
     }
     if ((millis() - u32StartTime) > ku16MBResponseTimeout)

@@ -75,6 +75,11 @@ class ModbusMaster
     void idle(void (*)());
     void preTransmission(void (*)());
     void postTransmission(void (*)());
+	
+	/**
+	Allow for changing the slave address after initialization
+	*/
+	void setSlaveAddress(uint8_t);
 
     // Modbus exception codes
     /**
@@ -216,6 +221,8 @@ class ModbusMaster
     uint8_t  maskWriteRegister(uint16_t, uint16_t, uint16_t);
     uint8_t  readWriteMultipleRegisters(uint16_t, uint16_t, uint16_t, uint16_t);
     uint8_t  readWriteMultipleRegisters(uint16_t, uint16_t);
+	
+	uint8_t	arbitraryCommandNoParameters(uint8_t, uint8_t numBytesExpected = 0);
     
   private:
     Stream* _serial;                                             ///< reference to serial port object
@@ -252,7 +259,7 @@ class ModbusMaster
     static const uint16_t ku16MBResponseTimeout          = 2000; ///< Modbus timeout [milliseconds]
     
     // master function that conducts Modbus transactions
-    uint8_t ModbusMasterTransaction(uint8_t u8MBFunction);
+    uint8_t ModbusMasterTransaction(uint8_t u8MBFunction, uint8_t numBytesExpected = 0);
     
     // idle callback function; gets called during idle time between TX and RX
     void (*_idle)();
