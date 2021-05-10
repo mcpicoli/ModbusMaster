@@ -80,6 +80,12 @@ class ModbusMaster
 	Allow for changing the slave address after initialization
 	*/
 	void setSlaveAddress(uint8_t);
+	
+	/**
+	Allow for translating the numeric values for the results of the operations 
+	to human-readable, friendly, Strings
+	*/
+	String getOperationResultString(uint8_t);
 
     // Modbus exception codes
     /**

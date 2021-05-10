@@ -213,6 +213,31 @@ void ModbusMaster::setSlaveAddress(uint8_t slaveAddress)
   u16TransmitBufferLength = 0;
 }
 
+/**
+Gets the friendly, human-readable, string for the given result code.
+Remember that if you don't use this, it won't use any memory in the compiled
+binary...
+
+@param uint8_t The Result Code to be translated
+@return String
+*/
+String ModbusMaster::getOperationResultString(uint8_t resultCode)
+{
+	switch (resultCode)
+	{
+		case ModbusMaster::ku8MBSuccess: return "Operation Successful";
+		case ModbusMaster::ku8MBIllegalFunction: return "Illegal Function";
+		case ModbusMaster::ku8MBIllegalDataAddress: return "Illegal Data Address";
+		case ModbusMaster::ku8MBIllegalDataValue: return "Illegal Data Value";
+		case ModbusMaster::ku8MBSlaveDeviceFailure: return "Slave Device Failure";
+		case ModbusMaster::ku8MBInvalidSlaveID: return "Invalid Slave ID";
+		case ModbusMaster::ku8MBInvalidFunction: return "Invalid Function";
+		case ModbusMaster::ku8MBResponseTimedOut: return "Response Timeout";
+		case ModbusMaster::ku8MBInvalidCRC: return "Invalid CRC";
+		
+		default: return "Unknown Result Code (" + String(resultCode) + ")";
+	}
+}
 
 /**
 Retrieve data from response buffer.
@@ -723,13 +748,16 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction, uint8_t numB
   {
     _preTransmission();
   }
+  
   for (i = 0; i < u8ModbusADUSize; i++)
   {
     _serial->write(u8ModbusADU[i]);
   }
   
   u8ModbusADUSize = 0;
+  
   _serial->flush();    // flush transmit buffer
+  
   if (_postTransmission)
   {
     _postTransmission();
@@ -737,6 +765,13 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction, uint8_t numB
   
   // loop until we run out of time or bytes, or an error occurs
   u32StartTime = millis();
+  
+  if (numBytesExpected != 0)
+  {
+	  // If the number of bytes expected is provided, use it.
+	  u8BytesLeft = numBytesExpected;
+  }
+  
   while (u8BytesLeft && !u8MBStatus)
   {
     if (_serial->available())
@@ -809,8 +844,6 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction, uint8_t numB
         case ku8MBMaskWriteRegister:
           u8BytesLeft = 5;
           break;
-		default:
-			u8BytesLeft = numBytesExpected;
       }
     }
     if ((millis() - u32StartTime) > ku16MBResponseTimeout)
@@ -882,6 +915,16 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction, uint8_t numB
           _u8ResponseBufferLength = i;
         }
         break;
+		default:		// Custom commands
+			// Load bytes "as-is" into the response buffer.
+			for (i = 0; i < numBytesExpected; i++)
+			{
+				if (i < ku8MaxBufferSize)
+				{
+					_u16ResponseBuffer[i] = u8ModbusADU[i];
+					_u8ResponseBufferLength = i;
+				}
+			}
     }
   }
   
